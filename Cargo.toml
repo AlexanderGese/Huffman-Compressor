@@ -1,0 +1,13 @@
+[package]
+name = "huffman"
+version = "0.1.0"
+edition = "2021"
+description = "A Huffman file compressor with a visual terminal UI"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+ratatui = "0.29"
+crossterm = "0.28"
+
+[profile.release]
+opt-level = 3
