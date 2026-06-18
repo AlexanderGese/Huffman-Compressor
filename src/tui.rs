@@ -178,3 +178,109 @@ fn ratio_bar(pct: f64) -> String {
     )
 }
 
+// ---- interactive ratatui rendering ------------------------------------------
+
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph},
+    Terminal,
+};
+use crossterm::{
+    event::{self, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use std::io;
+
+fn row_line(r: &Row) -> Line<'static> {
+    let mut spans = vec![
+        Span::styled(r.prefix.clone(), Style::default().fg(Color::DarkGray)),
+        Span::styled(r.edge.clone(), Style::default().fg(Color::Yellow)),
+    ];
+    match &r.leaf {
+        Some((disp, freq, code)) => {
+            spans.push(Span::styled(disp.clone(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)));
+            spans.push(Span::styled(format!(" \u{00d7}{freq}"), Style::default().fg(Color::DarkGray)));
+            spans.push(Span::styled(format!("  \u{2192} {code}"), Style::default().fg(Color::Cyan)));
+        }
+        None => {
+            spans.push(Span::styled("[\u{25cf}]", Style::default().fg(Color::Magenta)));
+            spans.push(Span::styled(format!(" {}", r.weight.unwrap_or(0)), Style::default().fg(Color::DarkGray)));
+        }
+    }
+    Line::from(spans)
+}
+
+pub fn tui_view(title: &str, root: &Node, codes: &HashMap<u8, Vec<bool>>, stats: &Stats) -> io::Result<()> {
+    let mut tree_lines: Vec<Line> = tree_rows(root, codes).iter().map(row_line).collect();
+    tree_lines.insert(0, Line::from(""));
+
+    let stat_lines = vec![
+        Line::from(vec![
+            Span::styled("original ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{} B", stats.orig), Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("    "),
+            Span::styled("compressed ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{} B", stats.comp), Style::default().add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(vec![
+            Span::styled("saved    ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.1}%", stats.saved_pct()), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("   ratio {:.3}", stats.ratio()), Style::default().fg(Color::DarkGray)),
+        ]),
+        Line::from(vec![
+            Span::styled("symbols ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{}", stats.symbols), Style::default().fg(Color::Cyan)),
+            Span::styled("   entropy ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.3}", stats.entropy), Style::default().fg(Color::Cyan)),
+            Span::styled(" bits/sym   avg code ", Style::default().fg(Color::DarkGray)),
+            Span::styled(format!("{:.3}", stats.avg_len), Style::default().fg(Color::Cyan)),
+        ]),
+        Line::from(vec![Span::styled("press q to quit", Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC))]),
+    ];
+
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let title_owned = format!(" \u{1f333} Huffman Compressor \u{2014} {title} ");
+    let draw = |terminal: &mut Terminal<CrosstermBackend<io::Stdout>>| -> io::Result<()> {
+        terminal.draw(|f| {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Min(3), Constraint::Length(6)])
+                .split(f.area());
+            let tree = Paragraph::new(tree_lines.clone()).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(Span::styled(title_owned.clone(), Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD))),
+            );
+            f.render_widget(tree, chunks[0]);
+            let panel = Paragraph::new(stat_lines.clone()).block(
+                Block::default().borders(Borders::ALL).title(" stats "),
+            );
+            f.render_widget(panel, chunks[1]);
+        })?;
+        Ok(())
+    };
+
+    draw(&mut terminal)?;
+    loop {
+        if let Event::Key(k) = event::read()? {
+            match k.code {
+                KeyCode::Char('q') | KeyCode::Esc | KeyCode::Enter => break,
+                _ => draw(&mut terminal)?,
+            }
+        }
+    }
+
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
+    Ok(())
+}
