@@ -1,0 +1,15 @@
+{
+  "name": "huffman-web",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "huffman_web_bg.wasm",
+    "huffman_web.js",
+    "huffman_web.d.ts"
+  ],
+  "main": "huffman_web.js",
+  "types": "huffman_web.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
