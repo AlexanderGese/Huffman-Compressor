@@ -1,8 +1,18 @@
 [package]
-name = "huffman"
+name = "huffman-tui"
 version = "0.1.0"
 edition = "2021"
-description = "A Huffman file compressor with a visual terminal UI"
+description = "A Huffman file compressor with a visual terminal UI that draws the Huffman tree"
+license = "MIT"
+repository = "https://github.com/AlexanderGese/Huffman-Compressor"
+readme = "README.md"
+keywords = ["huffman", "compression", "tui", "cli", "ratatui"]
+categories = ["command-line-utilities", "compression"]
+authors = ["Alexander Gese <alexander.gese07@gmail.com>"]
+
+[[bin]]
+name = "huffman"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
