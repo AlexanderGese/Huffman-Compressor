@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>🌳 Huffman Compressor — live demo</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d; --fg:#c9d1d9;
+    --dim:#6e7681; --bit:#d29922; --char:#3fb950; --code:#39c5cf; --node:#bc8cff; --accent:#3fb950;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+    line-height:1.5;padding:24px 16px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 2px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:18px}
+  .sub a{color:var(--code);text-decoration:none}
+  label{display:block;color:var(--dim);font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.06em}
+  textarea{width:100%;min-height:84px;background:var(--panel);color:var(--fg);
+    border:1px solid var(--border);border-radius:8px;padding:10px 12px;
+    font:inherit;resize:vertical;outline:none}
+  textarea:focus{border-color:var(--accent)}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;
+    margin-top:16px;overflow:hidden}
+  .panel .title{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--node);font-weight:600}
+  .tree{padding:12px;overflow-x:auto;white-space:pre;font-size:13.5px;line-height:1.45}
+  .stats{display:flex;flex-wrap:wrap;gap:18px 26px;padding:12px;border-top:1px solid var(--border);font-size:13px}
+  .stat b{color:var(--fg)} .stat .lab{color:var(--dim)}
+  .bar{display:inline-block;width:180px;height:9px;border-radius:5px;background:#21262d;vertical-align:middle;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .dim{color:var(--dim)} .bit{color:var(--bit)} .char{color:var(--char);font-weight:600}
+  .code{color:var(--code)} .node{color:var(--node)} .saved{color:var(--accent);font-weight:600}
+  .foot{color:var(--dim);font-size:12px;margin-top:18px;text-align:center}
+  .foot a{color:var(--code);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🌳 Huffman Compressor</h1>
+  <div class="sub">Type some text — watch the Huffman tree build. The actual Rust core, compiled to WebAssembly.
+    &nbsp;·&nbsp; <a href="https://github.com/AlexanderGese/Huffman-Compressor" target="_blank">source on GitHub</a></div>
+
+  <label for="inp">Input text</label>
+  <textarea id="inp" spellcheck="false">huffman coding builds a tree from symbol frequencies, then gives the most common symbols the shortest bit patterns. the more skewed the distribution, the better it compresses.</textarea>
+
+  <div class="panel">
+    <div class="title" id="ttl">🌳 tree</div>
+    <div class="tree" id="tree"></div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="foot">built in Rust → WebAssembly · <a href="https://github.com/AlexanderGese/Huffman-Compressor">Huffman-Compressor</a></div>
+</div>
+
+<script type="module">
+import init, { analyze } from "./pkg/huffman_web.js";
+
+const inp = document.getElementById("inp");
+const tree = document.getElementById("tree");
+const stats = document.getElementById("stats");
+
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+function rowHTML(r){
+  let body;
+  if(r.kind === "leaf"){
+    body = `<span class="char">${esc(r.char)}</span><span class="dim"> ×${r.freq}</span><span class="code">  → ${r.code}</span>`;
+  } else {
+    body = `<span class="node">[●]</span><span class="dim"> ${r.weight}</span>`;
+  }
+  return `<span class="dim">${esc(r.prefix)}</span><span class="bit">${esc(r.edge)}</span>${body}`;
+}
+
+function render(){
+  const out = JSON.parse(analyze(inp.value));
+  if(out.empty){ tree.textContent = "(type something above)"; stats.innerHTML=""; return; }
+  tree.innerHTML = out.rows.map(rowHTML).join("\n");
+  const filled = Math.max(0, Math.min(100, out.saved));
+  stats.innerHTML =
+    `<span class="stat"><span class="lab">original</span> <b>${out.original} B</b></span>`+
+    `<span class="stat"><span class="lab">compressed</span> <b>${out.compressed} B</b></span>`+
+    `<span class="stat"><span class="lab">saved</span> <span class="saved">${out.saved}%</span> `+
+      `<span class="bar"><i style="width:${filled}%"></i></span> <span class="dim">ratio ${out.ratio}</span></span>`+
+    `<span class="stat"><span class="lab">symbols</span> <span class="code">${out.symbols}</span></span>`+
+    `<span class="stat"><span class="lab">entropy</span> <span class="code">${out.entropy}</span> <span class="dim">bits/sym</span></span>`+
+    `<span class="stat"><span class="lab">avg code</span> <span class="code">${out.avg}</span></span>`;
+}
+
+await init();
+inp.addEventListener("input", render);
+render();
+</script>
+</body>
+</html>
