@@ -4,6 +4,8 @@ A small, from-scratch **Huffman file compressor** in Rust with a visual terminal
 It builds the Huffman tree from a file's byte frequencies, assigns the shortest
 bit-codes to the most common bytes, and shows you the whole tree.
 
+**▶ Try it live (no install): https://alexandergese.github.io/Huffman-Compressor/**
+
 ![the tree view](docs/screenshot.png)
 
 ## Features
